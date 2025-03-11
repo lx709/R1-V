@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import torch
 import transformers
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk, DatasetDict
 from transformers import AutoTokenizer, set_seed, AutoProcessor
 from transformers.trainer_utils import get_last_checkpoint
 import trl
@@ -204,8 +204,14 @@ def main(script_args, training_args, model_args):
     # Load datasets
     ################
 
-    dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
-
+    # dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+    train_dataset = load_from_disk(script_args.dataset_name)
+    test_dataset = load_from_disk(script_args.dataset_name)
+    dataset = DatasetDict({
+        'train': train_dataset,
+        'test': train_dataset,
+    })
+    
     ################
     # Load tokenizer
     ################
@@ -243,10 +249,18 @@ def main(script_args, training_args, model_args):
         quantization_config=quantization_config,
     )
     # training_args.model_init_kwargs = model_kwargs
-    from transformers import Qwen2VLForConditionalGeneration
-    model = Qwen2VLForConditionalGeneration.from_pretrained(
-        model_args.model_name_or_path, **model_kwargs
-    )
+    from transformers import Qwen2VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration
+    if 'Qwen2.5' in model_args.model_name_or_path:
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            model_args.model_name_or_path, **model_kwargs
+        )
+    elif 'Qwen2' in model_args.model_name_or_path:
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_args.model_name_or_path, **model_kwargs
+        )
+    else:
+        raise ValueError("Model not supported")
+    
     ############################
     # Initialize the SFT Trainer
     ############################
@@ -311,6 +325,18 @@ def main(script_args, training_args, model_args):
 
 
 if __name__ == "__main__":
+    
+    # Log in as a new user
+    import wandb
+    from datetime import datetime
+    wandb.login(key="631c24185e91c6025231a245e160eb569d6e630c")
+    
     parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_and_config()
+    
+    run_name = f"{training_args.run_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    wandb.init(project="RFT", name=run_name)
+    
     main(script_args, training_args, model_args)
+    
+    wandb.finish()

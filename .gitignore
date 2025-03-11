@@ -1,3 +1,17 @@
+
+*.out
+*.err
+
+dcgm/
+src/dcgm/
+src/r1-v/dcgm/
 output/
 hostfiles/
 internal_scripts/
+data/
+
+src/r1-v/debug_*
+src/rft-*
+src/r1-v/outputs/
+src/r1-v/outputs
+src/r1-v/wandb/
