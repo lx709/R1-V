@@ -4,7 +4,7 @@ model_revision: main
 torch_dtype: bfloat16
 
 # Data training arguments
-dataset_name: /ibex/project/c2106/Xiang/VRSBench/RL_data/VRSBench_RL_train_vqa_num_2k_dota/
+dataset_name: '/home/lix0i/Xiang/RS/R1-V/data/RL_DOTA_train/DOTA_train'
 dataset_configs:
 - all
 preprocessing_num_workers: 8
@@ -28,7 +28,7 @@ packing: true
 max_seq_length: 4096
 max_steps: -1
 num_train_epochs: 2
-output_dir: outputs/Dota-num-VRSBench_Qwen2-VL-2B-SFT
+output_dir: outputs/DOTA_Qwen2-VL-2B-SFT
 overwrite_output_dir: true
 per_device_eval_batch_size: 2
 per_device_train_batch_size: 4

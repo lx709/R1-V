@@ -22,9 +22,17 @@ def get_eval_config():
     parser.add_argument("--batch_size", default=4, type=int, help="Batch size for inference. Reduce if GPU OOM (default: 50).")
     parser.add_argument("--output_path", required=True, type=str, help="Path to save inference result (e.g., JSON file).")
     parser.add_argument("--prompt_path", required=True, type=str, help="Path to the prompts JSONL file for GeoQA evaluation.")
+    parser.add_argument("--data_root", required=True, type=str, help="Path to the images.")
     all_gpu = ",".join(map(str, range(torch.cuda.device_count())))
     parser.add_argument("--gpu_ids", default=all_gpu, help="comma-separated list of GPU IDs to use")
+    parser.add_argument("--ques_type",type=str, default='', help="Question type (default all).")
     args = parser.parse_args()
+    
+    # Post-process ques_type into a list
+    if args.ques_type!='':
+        args.ques_type = [q.strip() for q in args.ques_type.split(",")]
+        assert all(q in ['object existence', 'object quantity', 'object category', 'object color', 'object shape', 'object size'] for q in args.ques_type), "Invalid ques_type"
+    print(args)
     return args
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -36,17 +44,34 @@ def prepare_test_messages(testset_path):
         QUESTION_TEMPLATE = "{Question} Output the thinking process in <think> </think> and final answer (number) in <answer> </answer> tags."
     elif 'ref' in args.prompt_path:
         QUESTION_TEMPLATE = "{Question} Output the thinking process in <think> </think> and your grouding box. Following \"<think> thinking process </think>\n<answer>(x1,y1),(x2,y2)</answer>)\" format. x1,y1,x2,y2 are in the range of 0 to 100."
+    elif 'dota' in args.prompt_path:
+        QUESTION_TEMPLATE = "In the image, there's an marked red bounding box indicates the rough location of an object. Help me shift the left/right/bottom/right side of the bounding box to make it tightly enclose the object. Output the thinking process in <think> </think>, and a list of side shifts in <answer> </answer>. \
+        The answer follows the format of {<shift side, shift pixels>}, \
+        where {<shift side, shift pixels>} is a list of side shifts to move the marked red bounding box to enclose the object. An example answer could be {<bottom, 2>, <right, 10>}. \
+        Each side should be chosen from [left, right, top, bottom], shift pixels ranges from -50 to 50 pixels."
     else:
         raise ValueError("prompt_path should contain either 'vqa' or 'ref' for VQA or Referring Expression task.")
     
     tested_messages = []
-    for item in testset_data[:500]:
+    testset_data_new = []
+    for item in testset_data:
+        if 'vrsbench' in args.prompt_path and item['image_id'].startswith('P'): continue
+        if args.ques_type != '' and not item['type'] in args.ques_type: continue
+        
+        data_root = args.data_root
+        if 'dota' in args.prompt_path:
+            img_path = os.path.basename(item["crop_filename"]).replace("clean", "shifted")
+        else:
+            img_path = item['image_id']
+            
+        image_path = os.path.join(data_root, img_path)
+        
         message = [{
             "role": "user",
             "content": [
                 {
                     "type": "image", 
-                    "image": f"/ibex/project/c2106/Xiang/VRSBench/Images_val/{item['image_id']}"
+                    "image": image_path,
                 },
                 {
                     "type": "text",
@@ -54,8 +79,9 @@ def prepare_test_messages(testset_path):
                 }
             ]
         }]
+        testset_data_new.append(item)
         tested_messages.append(message)
-    return testset_data, tested_messages
+    return testset_data_new, tested_messages
 
 def extract_answer(output_str):
     try:
@@ -176,6 +202,7 @@ def answer_a_batch_question_qwen(batch_messages, model, processor):
         videos=video_inputs,
         padding=True,
         return_tensors="pt",
+        padding_side = "left"
     )
     inputs = inputs.to(model.device)
     
@@ -326,6 +353,53 @@ def compute_metrics_ref(testset_data, all_predicts):
     
     print(f"Results saved to {args.output_path}")
 
+
+def compute_metrcompute_metrics_refineics(testset_data, all_predicts):
+    import pudb; pudb.set_trace()
+    final_output = []
+    
+    total_count = len(testset_data)
+    thres_list = [0.5, 0.7]
+    count = np.zeros(len(thres_list))
+
+    total_iou = 0.0
+    
+    for input_example, model_output in zip(testset_data, all_predicts):
+        gt_bbox = extract_bbox_gt(input_example['ground_truth'])
+        pred_bbox = extract_bbox(model_output)
+        print('gt_bbox, pred_bbox', gt_bbox, pred_bbox)
+        # import pudb; pudb.set_trace()
+        
+        if gt_bbox and pred_bbox:
+            giou, iou = compute_giou(gt_bbox, pred_bbox)
+            total_iou += iou
+            
+            for ii, thres in enumerate(thres_list):
+                if iou >= thres:  # Fixed: Replaced iou_score with iou
+                    count[ii] += 1
+        
+        result = input_example.copy()
+        result.update({
+            'pred_bbox': pred_bbox,
+            'iou': iou if gt_bbox and pred_bbox else None,
+        })
+        
+        final_output.append(result)
+    
+    avg_iou = total_iou / total_count * 100
+    print(f"\nAverage IoU Score: {avg_iou:.2f}%")
+    
+    for ii, thres in enumerate(thres_list):
+        print(f'Acc at iou_{thres}:', count[ii] / total_count * 100, flush=True)
+    
+    if not os.path.exists(os.path.dirname(args.output_path)):
+        os.makedirs(os.path.dirname(args.output_path))
+        
+    with open(args.output_path, "w") as f:
+        json.dump({'average_iou': avg_iou, 'results': final_output}, f, indent=2, ensure_ascii=False)
+    
+    print(f"Results saved to {args.output_path}")
+    
 if __name__ == "__main__":
     args = get_eval_config()
     testset_data, tested_messages = prepare_test_messages(testset_path=args.prompt_path)
@@ -334,5 +408,7 @@ if __name__ == "__main__":
         compute_metrics(testset_data, all_predicts, tested_messages)  # Pass tested_messages as argument
     elif 'ref' in args.prompt_path:
         compute_metrics_ref(testset_data, all_predicts)
+    elif 'dota' in args.prompt_path:
+        compute_metrics_refine(testset_data, all_predicts)
     else:
         raise ValueError("prompt_path should contain either 'vqa' or 'ref' for VQA or Referring Expression task.")

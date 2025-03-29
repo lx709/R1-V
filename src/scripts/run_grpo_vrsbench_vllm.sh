@@ -60,7 +60,7 @@ CUDA_VISIBLE_DEVICES="0,1,2" torchrun \
     --save_only_model true \
     --report_to wandb \
     --temperature 1.0 \
-    --num_generations 6 \
+    --num_generations 4 \
     --vllm_device "cuda:2" \
     --vllm_gpu_memory_utilization 0.8 \
     --deepspeed ${DS_CONFIG} \

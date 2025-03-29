@@ -3,15 +3,16 @@
 *.err
 
 dcgm/
-src/dcgm/
-src/r1-v/dcgm/
-output/
+output*/
 hostfiles/
 internal_scripts/
 data/
 
+src/dcgm/
+src/r1-v/dcgm/
 src/r1-v/debug_*
 src/rft-*
-src/r1-v/outputs/
 src/r1-v/outputs
+src/r1-v/outputs*/
 src/r1-v/wandb/
+src/srun_logs/

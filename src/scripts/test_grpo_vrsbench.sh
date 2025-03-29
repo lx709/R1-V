@@ -10,9 +10,9 @@
 
 source ~/.bashrc
 conda init bash
-conda activate r1-v
+conda activate r1-v2
 
-module load cuda/11.7
+module load cuda/12.1
 
 export PATH=$PATH:/home/lix0i/Xiang/RS/GeoChat/HIP/bin
 
@@ -48,7 +48,7 @@ prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
 
 
 model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2-VL-2B-v2/checkpoint-500
-output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2-VL-2B-v2//eval/pred_s500.json
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2-VL-2B-v2//eval/pred_s500_num.json
 prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
 
 model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2-VL-2B-v3/checkpoint-500
@@ -71,13 +71,61 @@ prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
 
 
 model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B_vllm-v2/checkpoint-250
-output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B_vllm-v2//eval/pred_s500.json
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B_vllm-v2//eval/pred_s250.json
 prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-SFT/
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-SFT/eval/pred_s124_num.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+
+model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-SFT-ep10/
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-SFT-ep10/eval/pred_s620.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-v3/checkpoint-1002
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-3B-v3/eval/pred_s1002.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+model_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-7B/
+output_path=${r1_v_path}/src/r1-v/outputs/VRSBench_Qwen2.5-VL-7B//eval/pred_s500.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+
+model_path=${r1_v_path}/src/r1-v/outputs_num/VRSBench_Qwen2.5-VL-3B-SFT/
+output_path=${r1_v_path}/src/r1-v/outputs_num/VRSBench_Qwen2.5-VL-3B-SFT/eval/pred_s124.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+
+model_path=${r1_v_path}/src/r1-v/outputs/Dota-num-VRSBench_Qwen2-VL-2B/checkpoint-500
+output_path=${r1_v_path}/src/r1-v/outputs/Dota-num-VRSBench_Qwen2-VL-2B/eval/pred_s500.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+
+
+model_path=${r1_v_path}/src/r1-v/outputs/Dota-num-VRSBench_Qwen2-VL-2B-SFT/
+output_path=${r1_v_path}/src/r1-v/outputs/Dota-num-VRSBench_Qwen2-VL-2B-SFT/eval/pred_s124.json
+prompt_path=/ibex/project/c2106/Xiang/VRSBench/VRSBench_EVAL_vqa.json
+data_root=/ibex/project/c2106/Xiang/VRSBench/Images_val/
 
 python src/eval/test_qwen2vl_vrsbench.py \
     --model_path ${model_path} \
     --batch_size ${batch_size} \
     --output_path ${output_path} \
     --prompt_path ${prompt_path} \
-    --gpu_ids ${gpu_ids}
+    --gpu_ids ${gpu_ids} \
+    --data_root ${data_root} \
+    --ques_type "object quantity"
 
+
+model_path=${r1_v_path}/src/r1-v/outputs/DOTA_Qwen2-VL-2B-SFT/
+output_path=${r1_v_path}/src/r1-v/outputs/DOTA_Qwen2-VL-2B-SFT/eval/pred_s168.json
+prompt_path=/ibex/project/c2106/Xiang/R1-V/data/RL_DOTA_val/bbox_refinement_dataset_val.json
+data_root=/ibex/project/c2106/Xiang/R1-V/data/RL_DOTA_val/images/
+
+python src/eval/test_qwen2vl_vrsbench.py \
+    --model_path ${model_path} \
+    --batch_size ${batch_size} \
+    --output_path ${output_path} \
+    --prompt_path ${prompt_path} \
+    --data_root ${data_root} \
+    --gpu_ids ${gpu_ids} \

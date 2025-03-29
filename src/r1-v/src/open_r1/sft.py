@@ -38,7 +38,8 @@ accelerate launch --config_file=configs/zero3.yaml src/open_r1/sft.py \
 import logging
 import os
 import sys
-
+import PIL
+import numpy as np
 import datasets
 from dataclasses import dataclass, field
 from typing import Optional
@@ -212,6 +213,43 @@ def main(script_args, training_args, model_args):
         'test': train_dataset,
     })
     
+    QUESTION_TEMPLATE = "In the image, there's an marked red bounding box indicates the rough location of an object. Help me shift the left/right/bottom/right side of the bounding box to make it tightly enclose the object. Output the thinking process in <think> </think>, and a list of side shifts in <answer> </answer>. \
+        The answer follows the format of {<shift side, shift pixels>}, \
+        where {<shift side, shift pixels>} is a list of side shifts to move the marked red bounding box to enclose the object. An example answer could be {<bottom, 2>, <right, 10>}. \
+        Each side should be chosen from [left, right, top, bottom], shift pixels ranges from -50 to 50 pixels."
+    
+    def make_conversation_image(example):
+        data_root = '/home/lix0i/Xiang/RS/R1-V/data/RL_DOTA_train/images/'
+        img_path = os.path.basename(example["crop_filename"]).replace("clean", "shifted")
+        image_path = os.path.join(data_root, img_path)
+        img = PIL.Image.open(image_path)
+        shift_operations = example["shift_operations"]
+        solution = "<answer> {"
+        for ii,shift_op in enumerate(shift_operations):
+            side, shift_px = shift_op
+            shift_px = int(np.round(float(shift_px)))
+            if ii == len(shift_operations) - 1:
+                solution += f"<{side}, {-shift_px}>"
+            else:
+                solution += f"<{side}, {-shift_px}>,"
+        solution += "}</answer>"
+        
+        return {
+            "image": img, 
+            "solution": solution,
+            "prompt": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image"},
+                        {"type": "text", "text": QUESTION_TEMPLATE}, # .format(Question=example["problem"])
+                    ],
+                },
+            ],
+        }
+    if 'dota' in script_args.dataset_name.lower():
+        dataset = dataset.map(make_conversation_image)
+    
     ################
     # Load tokenizer
     ################
@@ -335,7 +373,7 @@ if __name__ == "__main__":
     script_args, training_args, model_args = parser.parse_args_and_config()
     
     run_name = f"{training_args.run_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    wandb.init(project="RFT", name=run_name)
+    wandb.init(project="SFT", name=run_name)
     
     main(script_args, training_args, model_args)
     
